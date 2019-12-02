@@ -1,8 +1,8 @@
 from flask import Flask, render_template, redirect, request
 from google.appengine.ext import db
-
+from models.facade import *
 from models.entities.user import User
-from models.facade import get_all_user
+from models.entities.zone import Zone
 
 app = Flask(__name__)
 
@@ -20,16 +20,15 @@ CRUD User routes
 # user list
 @app.route('/user_all')
 def user_all():
-    data = User.all()
-    return render_template('user_all.html', data=data)
+    data = get_all_user()
+    return render_template('user/user_all.html', data=data)
 
 
 #  get user info
 @app.route('/user_one/<id>')
 def user_one(id):
-    user_id = int(id)
-    user = db.get(db.Key.from_path('User', user_id))
-    return render_template('user_one.html', user=user)
+    user = user_get_one(id)
+    return render_template('user/user_one.html', user=user)
 
 
 #  new user
@@ -45,9 +44,9 @@ def user_new():
             role='user'  # por defecto
         )
         user.put()
-        return redirect('/user_all')
+        return redirect('user_all')
     else:
-        return render_template('user_new.html')
+        return render_template('user/user_new.html')
 
 
 #  update user info
@@ -58,9 +57,9 @@ def user_edit(id):
         user = db.get(db.Key.from_path('User', user_id))
         user.user_name = str(request.form.get('username'))
         user.email = str(request.form.get('email'))
-        user.first_name = 'Tarek'
-        user.last_name = 'Khalfaoui'
-        user.gender = 'male'
+        user.first_name = str(request.form.get('firstname'))
+        user.last_name = str(request.form.get('lastname'))
+        user.gender = str(request.form.get('gender'))
         user.role = 'user'
         user.put()
         return redirect('/user_all')
@@ -68,7 +67,7 @@ def user_edit(id):
     else:
         user_id = int(id)
         user = db.get(db.Key.from_path('User', user_id))
-        return render_template('user_edit.html', user=user)
+        return render_template('user/user_edit.html', user=user)
 
 
 #  delete user
@@ -85,28 +84,75 @@ CRUD Zona routes
 """
 
 
-# zona list
-@app.route('/zona_all')
-def zona_all():
-    return 'Hello World!'
+# zone list
+@app.route('/zone_all')
+def zone_all():
+    data = get_all_zone()
+    return render_template('zone/zone_all.html', data=data)
 
 
-#  get zona info
-@app.route('/zona_one')
-def zona_one():
-    return 'Hello World!'
+#  get zone info
+@app.route('/zone_one/<id>')
+def zone_one(id):
+    zone = zone_get_one(id)
+    return render_template('zone/zone_one.html', zone=zone)
 
 
-#  update zona info
-@app.route('/zona_edit')
-def zona_edit():
-    return 'Hello World!'
+#  new zone
+@app.route('/zone_new', methods=['GET', 'POST'])
+def zone_new():
+    if request.method == 'POST':
+        zone = Zone(
+            name=request.form.get('name'),
+            latitude=int(request.form.get('latitude')),
+            longitude=int(request.form.get('longitude')),
+            height=int(request.form.get('height')),
+            width=int(request.form.get('width')),
+        )
+        zone.put()
+        return redirect('zone_all')
+    else:
+        return render_template('zone/zone_new.html')
 
 
-#  delete zona
-@app.route('/zona_delete')
-def zona_delete():
-    return 'Hello World!'
+#  update zone info
+@app.route('/zone_edit/<id>', methods=['GET', 'POST'])
+def zone_edit(id):
+    if request.method == 'POST':
+        zone_id = int(id)
+        zone = db.get(db.Key.from_path('Zone', zone_id))
+        zone.name = str(request.form.get('name'))
+        zone.latitude = int(request.form.get('latitude'))
+        zone.longitude = int(request.form.get('longitude'))
+        zone.height = int(request.form.get('height'))
+        zone.width = int(request.form.get('width'))
+        zone.put()
+        return redirect('/zone_all')
+
+    else:
+        zone_id = int(id)
+        zone = db.get(db.Key.from_path('Zone', zone_id))
+        return render_template('zone/zone_edit.html', zone=zone)
+
+#  delete zone
+@app.route('/zone_delete/<id>')
+def zone_delete(id):
+    if id:
+        zone_id = int(id)
+        zone = db.get(db.Key.from_path('Zone', zone_id))
+        db.delete(zone)
+        return redirect('/zone_all')
+
+""" 
+SEARCH FOR GAME       
+"""
+@app.route('/game_search/<keyword>')
+def game_search(keyword):
+    if keyword:
+        keyword = str(keyword)
+        q = Game.all()
+        result = q.filter("game_name =", keyword)
+        return render_template('game_search.html', data=result)
 
 
 if __name__ == '__main__':

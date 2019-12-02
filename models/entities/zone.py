@@ -2,8 +2,9 @@ from google.appengine.ext import db
 
 
 class Zone(db.Model):
-    latitude = db.StringProperty(required=True)
-    longitude = db.StringProperty(required=True)
-    height = db.StringProperty()
-    width = db.StringProperty()
+    name = db.StringProperty(required=True)
+    latitude = db.IntegerProperty(required=True)
+    longitude = db.IntegerProperty(required=True)
+    height = db.IntegerProperty()
+    width = db.IntegerProperty()
 
