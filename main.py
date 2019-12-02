@@ -1,156 +1,162 @@
-# Copyright 2016 Google Inc.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 
-# [START app]
-import logging
+from flask import Flask, render_template, redirect, request
+from google.appengine.ext import db
+from models.facade import *
+from models.entities.user import User
+from models.entities.zone import Zone
 
-# [START imports]
-from flask import Flask, render_template, request
-from pymongo import MongoClient
-from flask import Flask, jsonify
-from model import *
-import mongoengine as me
-
-
-# [END imports]
-
-# [START create_app]
 app = Flask(__name__)
-# [END create_app]
-tasks = [
-    {
-        'id': 1,
-        'title': u'Buy groceries',
-        'description': u'Milk, Cheese, Pizza, Fruit, Tylenol', 
-        'done': False
-    },
-    {
-        'id': 2,
-        'title': u'Learn Python',
-        'description': u'Need to find a good Python tutorial on the web', 
-        'done': False
-    }
-]
-# [START form]
+
 
 @app.route('/')
 def home():
-    client = MongoClient('mongodb://casaDeTesoros:<123456.>@cluster0-shard-00-00-of11h.gcp.mongodb.net:27017,cluster0-shard-00-01-of11h.gcp.mongodb.net:27017,cluster0-shard-00-02-of11h.gcp.mongodb.net:27017/test?ssl=true&replicaSet=Cluster0-shard-0&authSource=admin&retryWrites=true&w=majority')
-    db = client.test     
-    return jsonify({'tasks': tasks})
-
-# [END form]
+    return render_template('index.html')
 
 
-
-# [START form]
-@app.route('/form')
-def form():
-    return render_template('form.html')
-# [END form]
+""" 
+CRUD User routes       
+"""
 
 
-# [START submitted]
-@app.route('/submitted', methods=['POST'])
-def submitted_form():
-    name = request.form['name']
-    email = request.form['email']
-    site = request.form['site_url']
-    comments = request.form['comments']
-
-    # [END submitted]
-    # [START render_template]
-    return render_template(
-        'submitted_form.html',
-        name=name,
-        email=email,
-        site=site,
-        comments=comments)
-    # [END render_template]
+# user list
+@app.route('/user_all')
+def user_all():
+    data = get_all_user()
+    return render_template('user/user_all.html', data=data)
 
 
+#  get user info
+@app.route('/user_one/<id>')
+def user_one(id):
+    user = user_get_one(id)
+    return render_template('user/user_one.html', user=user)
 
-@app.route('/add', methods=['POST'])
-def add_user():
-	_json = request.json
-	_name = _json['name']
-	_email = _json['email']
-	_password = _json['pwd']
-	# validate the received values
-	if _name and _email and _password and request.method == 'POST':
-		#do not save password as a plain text
-		_hashed_password = generate_password_hash(_password)
-		# save details
-		id = mongo.db.user.insert({'name': _name, 'email': _email, 'pwd': _hashed_password})
-		resp = jsonify('User added successfully!')
-		resp.status_code = 200
-		return resp
-	else:
-		return not_found()
-		
-@app.route('/users')
-def users():
-    data = User.objects()
-    json_data = data.to_json()
-    return json_data
 
-@app.route('/user/<id>')
-def user(id):
-    data = User.objects(id=id)
-    json_data = data.to_json()
-    return json_data
-		
-@app.route('/update', methods=['PUT'])
-def update_user():
-	_json = request.json
-	_id = _json['_id']
-	_name = _json['name']
-	_email = _json['email']
-	_password = _json['pwd']		
-	# validate the received values
-	if _name and _email and _password and _id and request.method == 'PUT':
-		#do not save password as a plain text
-		_hashed_password = generate_password_hash(_password)
-		# save edits
-		mongo.db.user.update_one({'_id': ObjectId(_id['$oid']) if '$oid' in _id else ObjectId(_id)}, {'$set': {'name': _name, 'email': _email, 'pwd': _hashed_password}})
-		resp = jsonify('User updated successfully!')
-		resp.status_code = 200
-		return resp
-	else:
-		return not_found()
-		
-@app.route('/delete/<id>', methods=['DELETE'])
-def delete_user(id):
-	mongo.db.user.delete_one({'_id': ObjectId(id)})
-	resp = jsonify('User deleted successfully!')
-	resp.status_code = 200
-	return resp
-		
-@app.errorhandler(404)
-def not_found(error=None):
-    message = {
-        'status': 404,
-        'message': 'Not Found: ' + request.url,
-    }
-    resp = jsonify(message)
-    resp.status_code = 404
+#  new user
+@app.route('/user_new', methods=['GET', 'POST'])
+def user_new():
+    if request.method == 'POST':
+        user = User(
+            user_name=request.form.get('username'),
+            email=request.form.get('email'),
+            first_name=request.form.get('firstname'),
+            last_name=request.form.get('lastname'),
+            gender=request.form.get('gender'),
+            role='user'  # por defecto
+        )
+        user.put()
+        return redirect('user_all')
+    else:
+        return render_template('user/user_new.html')
 
-    return resp
 
-@app.errorhandler(500)
-def server_error(e):
-    # Log the error and stacktrace.
-    logging.exception('An error occurred during a request.')
-    return 'An internal error occurred.', 500
-# [END app]
+#  update user info
+@app.route('/user_edit/<id>', methods=['GET', 'POST'])
+def user_edit(id):
+    if request.method == 'POST':
+        user_id = int(id)
+        user = db.get(db.Key.from_path('User', user_id))
+        user.user_name = str(request.form.get('username'))
+        user.email = str(request.form.get('email'))
+        user.first_name = str(request.form.get('firstname'))
+        user.last_name = str(request.form.get('lastname'))
+        user.gender = str(request.form.get('gender'))
+        user.role = 'user'
+        user.put()
+        return redirect('/user_all')
+
+    else:
+        user_id = int(id)
+        user = db.get(db.Key.from_path('User', user_id))
+        return render_template('user/user_edit.html', user=user)
+
+
+#  delete user
+@app.route('/user_delete/<id>')
+def user_delete(id):
+    user_id = int(id)
+    user = db.get(db.Key.from_path('User', user_id))
+    db.delete(user)
+    return redirect('/user_all')
+
+
+""" 
+CRUD Zona routes       
+"""
+
+
+# zone list
+@app.route('/zone_all')
+def zone_all():
+    data = get_all_zone()
+    return render_template('zone/zone_all.html', data=data)
+
+
+#  get zone info
+@app.route('/zone_one/<id>')
+def zone_one(id):
+    zone = zone_get_one(id)
+    return render_template('zone/zone_one.html', zone=zone)
+
+
+#  new zone
+@app.route('/zone_new', methods=['GET', 'POST'])
+def zone_new():
+    if request.method == 'POST':
+        zone = Zone(
+            name=request.form.get('name'),
+            latitude=int(request.form.get('latitude')),
+            longitude=int(request.form.get('longitude')),
+            height=int(request.form.get('height')),
+            width=int(request.form.get('width')),
+        )
+        zone.put()
+        return redirect('zone_all')
+    else:
+        return render_template('zone/zone_new.html')
+
+
+#  update zone info
+@app.route('/zone_edit/<id>', methods=['GET', 'POST'])
+def zone_edit(id):
+    if request.method == 'POST':
+        zone_id = int(id)
+        zone = db.get(db.Key.from_path('Zone', zone_id))
+        zone.name = str(request.form.get('name'))
+        zone.latitude = int(request.form.get('latitude'))
+        zone.longitude = int(request.form.get('longitude'))
+        zone.height = int(request.form.get('height'))
+        zone.width = int(request.form.get('width'))
+        zone.put()
+        return redirect('/zone_all')
+
+    else:
+        zone_id = int(id)
+        zone = db.get(db.Key.from_path('Zone', zone_id))
+        return render_template('zone/zone_edit.html', zone=zone)
+
+#  delete zone
+@app.route('/zone_delete/<id>')
+def zone_delete(id):
+    if id:
+        zone_id = int(id)
+        zone = db.get(db.Key.from_path('Zone', zone_id))
+        db.delete(zone)
+        return redirect('/zone_all')
+
+""" 
+SEARCH FOR GAME       
+"""
+@app.route('/game_search/<keyword>')
+def game_search(keyword):
+    if keyword:
+        keyword = str(keyword)
+        q = Game.all()
+        result = q.filter("game_name =", keyword)
+        return render_template('game_search.html', data=result)
+
+
+if __name__ == '__main__':
+    app.run()
+
+

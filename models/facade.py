@@ -1,6 +1,8 @@
 from distutils.command.install_data import install_data
 from google.appengine.ext import db
 from models.entities.game import Game
+from models.entities.user import User
+from models.entities.zone import Zone
 
 
 def get_or_insert_game(zone=None, treasures=None, owner=None, name=None, is_active=True):
@@ -76,3 +78,23 @@ def exists_game(game=None):
     if game is None or game.name is None or game.owner is None or game.owner.email is None:
         return False
     return Game.get_by_key_name(key_names=game.owner.email + "_" + game.name) is not None
+
+
+def get_all_user():
+    return User.all()
+
+
+def user_get_one(id):
+    user_id = int(id)
+    user = db.get(db.Key.from_path('User', user_id))
+    return user
+
+
+def get_all_zone():
+    return Zone.all()
+
+
+def zone_get_one(id):
+    zone_id = int(id)
+    zone = db.get(db.Key.from_path('Zone', zone_id))
+    return zone
